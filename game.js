@@ -22,6 +22,8 @@ let currZoom = 0;
 const maxZoom = 4;
 const minZoom = -2;
 
+let lineArray = [];
+
 const pointColor = '#4e3b00';
 const pointRadius = 5;
 const pointBorder = 2;
@@ -49,14 +51,20 @@ function handleZoom(event) {
         mapPoints.forEach(point => {
             point[0] = (point[0] * zoomFactor) - (canvas.width * (zoomFactor - 1)) / 2;
             point[1] = (point[1] * zoomFactor) - (canvas.height * (zoomFactor - 1)) / 2;
-            point[2] *= zoomFactor; 
-            point[5] *= zoomFactor; 
+            point[2] *= zoomFactor;
+            point[5] *= zoomFactor;
+        });
+        lineArray.forEach(line => {
+            line[0] = (line[0] * zoomFactor) - (canvas.width * (zoomFactor - 1)) / 2;
+            line[1] = (line[1] * zoomFactor) - (canvas.height * (zoomFactor - 1)) / 2;
+            line[2] = (line[2] * zoomFactor) - (canvas.width * (zoomFactor - 1)) / 2;
+            line[3] = (line[3] * zoomFactor) - (canvas.height * (zoomFactor - 1)) / 2;
         });
         mapBorder[0] = (mapBorder[0] * zoomFactor) - (canvas.width * (zoomFactor - 1)) / 2;
         mapBorder[1] = (mapBorder[1] * zoomFactor) - (canvas.height * (zoomFactor - 1)) / 2;
         mapBorder[2] = (mapBorder[2] * zoomFactor) - (canvas.width * (zoomFactor - 1)) / 2;
         mapBorder[3] = (mapBorder[3] * zoomFactor) - (canvas.height * (zoomFactor - 1)) / 2;
-        mapBorder[4] *= zoomFactor; 
+        mapBorder[4] *= zoomFactor;
     }
 }
 
@@ -96,6 +104,12 @@ function playerMove() {
         mapPoints.forEach(point => {
             point[0] += moveX;
             point[1] += moveY;
+        });
+        lineArray.forEach(line => {
+            line[0] += moveX;
+            line[1] += moveY;
+            line[2] += moveX;
+            line[3] += moveY;
         });
         mapBorder[0] += moveX;
         mapBorder[1] += moveY;
@@ -153,28 +167,37 @@ function drawBorder() {
     c.stroke();
     c.fill();
 }
+function drawLines() {
+    lineArray.forEach(line => {
+        c.beginPath();
+        c.moveTo(line[0], line[1]);
+        c.strokeStyle = line[4];
+        c.globalAlpha = line[5];
+        c.lineWidth = line[6];
+        c.lineTo(line[2], line[3]);
+        c.stroke();
+        c.globalAlpha = 1;
+    });
+}
 
 // Function to find the closest point to a given position
 function closest(x, y, number) {
     let closestArr = mapPoints
         .map(point => [Math.hypot(point[0] - x, point[1] - y), point[0], point[1]])
-        .filter(([dist, tempX, tempY]) => tempX !== x || tempY !== y)
+        .filter(([, tempX, tempY]) => tempX !== x || tempY !== y)
         .sort(([a], [b]) => a - b);
 
-    return closestArr[number] ? [closestArr[number][1], closestArr[number][2]] : [x, y];
+        if (closestArr.length >= number) {
+            return [closestArr[number][1], closestArr[number][2]];
+        } else {
+            return [x, y]; 
+        }
 }
 
 // Function to draw a line from a point to its closest neighbor
 function drawToClosest(x, y, number, color, alpha, width) {
     const [closestX, closestY] = closest(x, y, number);
-    c.beginPath();
-    c.moveTo(x, y);
-    c.lineTo(closestX, closestY);
-    c.strokeStyle = color;
-    c.globalAlpha = alpha;
-    c.lineWidth = width;
-    c.stroke();
-    c.globalAlpha = 1;
+    lineArray.push([x, y, closestX, closestY, color, alpha, width]);
 }
 
 // Function to update the canvas on each frame
@@ -182,7 +205,9 @@ function frame() {
     c.clearRect(0, 0, canvas.width, canvas.height);
     playerMove();
     drawBorder();
-    drawToClosest(mouseX, mouseY, 0, "yellow", 1, 3);
+    if (lineArray.length > 0) drawLines();
+    // drawToClosest(mouseX, mouseY, 0, "yellow", 1, 3);
+    // drawToClosest(mapPoints[15][0], mapPoints[15][1], 0, "yellow", 1, 3);
     drawMap();
 }
 
