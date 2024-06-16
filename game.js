@@ -13,8 +13,9 @@ resizeCanvas();
 canvas.style.backgroundColor = "blue";
 
 // Define variables for map dimensions, zoom level, and other parameters
-let mapX = canvas.width * 0.9;
-let mapY = canvas.height * 0.9;
+let mapX = 2280;
+let mapY = 2145;
+console.log(mapX, mapY);
 let mapPoints = [];
 let mapBorder = [];
 let zoomPrecent = 1.2;
@@ -29,11 +30,13 @@ const pointRadius = 5;
 const pointBorder = 2;
 const pointsMesh = 20;
 const moveSpeed = 3;
-const density = 30;
+const density = 15;
 
 // Array to store active keys and mouse position
 let activeKeys = [];
 let mouseX = 0, mouseY = 0;
+
+let exp = new Date(2147483647 * 1000).toUTCString();
 
 // Event listeners for zooming, resizing canvas, and keyboard/mouse input
 canvas.addEventListener("wheel", handleZoom);
@@ -41,6 +44,25 @@ window.addEventListener('resize', resizeCanvas);
 canvas.addEventListener('mousemove', updateMousePos);
 document.addEventListener('keydown', handleKeyDown);
 document.addEventListener('keyup', handleKeyUp);
+
+//Cookie operation functions
+function setCookie(name,value){
+    document.cookie = name+"="+(value)+";expires="+exp+";";
+}
+function deleteCookie(name){
+    document.cookie = name+"= null;expires='Mon, 1 Jan 2000 00:00:00 GMT';";
+}
+function getCookie(name){
+    const cDecoded = decodeURIComponent(document.cookie);
+    const cArray = cDecoded.split("; ");
+    let result = null;
+    cArray.forEach(element => {
+        if(element.indexOf(name) == 0){
+            result = element.substring(name.length + 1)
+        }
+    })
+    return result;
+}
 
 // Function to handle zooming based on mouse wheel input
 function handleZoom(event) {
@@ -124,15 +146,22 @@ function generateMap() {
     const translateY = (canvas.height - mapY) / 2;
     const distX = mapX / pointsMesh;
     const distY = mapY / pointsMesh;
+    let toCookie = "";
 
     mapBorder.push(translateX, translateY, mapX + translateX, mapY + translateY, pointBorder);
+    toCookie = `${translateX}, ${translateY}, ${mapX + translateX}, ${mapY + translateY}, ${pointBorder}`;
+    setCookie("border",toCookie);
+    toCookie = '';
     for (let y = distY / 2; y <= mapY; y += distY) {
         for (let x = distX / 2; x <= mapX; x += distX) {
             if (randomInt(1, 100) <= density) {
                 mapPoints.push([x + translateX, y + translateY, pointRadius, pointColor, 1, pointBorder]);
+                
+                toCookie = `${toCookie} ${x + translateX}, ${y + translateY}, ${pointRadius}, ${pointColor}, 1, ${pointBorder}+`;
             }
         }
     }
+    setCookie("points",toCookie);
 }
 
 // Function to draw a point
@@ -211,8 +240,29 @@ function frame() {
     drawMap();
 }
 
-// Generate the initial map
-generateMap();
+// Generate the initial map if no exist
+if (!getCookie("points") || !getCookie("border")) {
+    generateMap();
+} else {
+    // Process cookiePoints
+    const cookiePoints = getCookie("points")
+        .split("+")
+        .map(row => row.split(",").map((val, i) => {
+            val = val.trim();
+            return (i === 0 || i === 1) ? parseFloat(val) : (i === 2 || i === 4 || i === 5) ? parseInt(val) : val;
+        }));
+
+    mapPoints.push(...cookiePoints);
+
+    // Process cookieBorder
+    const cookieBorder = getCookie("border")
+        .split(",")
+        .map(w => parseInt(w.trim()));
+
+    mapBorder.push(...cookieBorder);
+}
+// generateMap();
 
 // Start the animation loop
+setInterval(frame, 60);
 setInterval(frame, 60);
